@@ -58,6 +58,36 @@ Exploratory script testing interleaved KV-cache generation (slower than vllm-mlx
 ### `run_parallel.py` — Multiprocessing experiment
 Spawns multiple MLX processes — doesn't help because they share GPU memory bandwidth.
 
+## vllm-mlx Patches Required for GraniteDocling
+
+Two issues prevent vllm-mlx from serving `ibm-granite/granite-docling-258M-mlx` out of the box. Both are patched in `start_server.py`.
+
+### 1. Idefics3Processor missing chat template
+
+vllm-mlx calls `processor.apply_chat_template()` for multimodal models, but the Idefics3Processor doesn't expose the chat template even though the underlying tokenizer has one. This causes:
+
+```
+ValueError: Cannot use apply_chat_template because this processor does not have a chat template.
+```
+
+**Fix:** Monkey-patch `mlx_vlm.load` to copy `tokenizer.chat_template` onto the processor after loading:
+
+```python
+processor.chat_template = processor.tokenizer.chat_template
+```
+
+This is a known issue in HuggingFace transformers ([#40913](https://github.com/huggingface/transformers/issues/40913)) where processor `chat_template` kwargs get overridden by model defaults during `from_pretrained`.
+
+### 2. Prefill token limit too low
+
+The MLLM scheduler defaults to `prefill_step_size=1024`, but GraniteDocling prompts are ~1142 tokens (image patches + text), causing:
+
+```
+Total prompt tokens (1142) exceeds safe limit (1024)
+```
+
+**Fix:** Monkey-patch `MLLMSchedulerConfig.__init__` to set `prefill_step_size=4096`.
+
 ## Setup
 
 ```bash
