@@ -1,5 +1,22 @@
 # Docling VLM Benchmark on Apple Silicon
 
+## TL;DR — Fastest approach
+
+```bash
+# 1. Install vllm-mlx
+uv tool install git+https://github.com/waybarrios/vllm-mlx.git
+
+# 2. Start the batched inference server (patches granite-docling compatibility issues)
+/path/to/vllm-mlx/bin/python start_server.py
+
+# 3. Send pages concurrently (in another terminal)
+uv run --with openai python test_concurrent.py
+```
+
+This runs [GraniteDocling-258M](https://huggingface.co/ibm-granite/granite-docling-258M-mlx) via [vllm-mlx](https://github.com/waybarrios/vllm-mlx) with continuous batching. On an M5 Max it processes an 8-page PDF in **15s (0.52 pages/sec, 758 tok/s)** — 2x faster than sequential docling.
+
+---
+
 Benchmarking [Docling](https://github.com/docling-project/docling) VLM-based PDF conversion on Apple Silicon (M5 Max, 40 GPU cores, 128GB unified memory).
 
 ## Key Finding: Batched Inference via vllm-mlx
